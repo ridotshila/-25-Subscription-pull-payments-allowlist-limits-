@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Subscription / Pull-Payment Smart Contract – Tutorial</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f8f9fa; color:#222; line-height:1.6; padding:20px; }
+  h1,h2,h3,h4 { color:#003366; }
+  pre { background:#eee; padding:10px; border-radius:8px; overflow:auto; }
+  code { font-family: Consolas, monospace; }
+  .section { margin-bottom:40px; }
+  table { width:100%; border-collapse: collapse; margin:15px 0; }
+  table, th, td { border:1px solid #bbb; }
+  th, td { padding:10px; background:white; }
+  .toc a { text-decoration:none; color:#0066cc; }
+</style>
+</head>
+<body>
+
+<h1>📘 Subscription / Pull-Payment Smart Contract – Full Tutorial</h1>
+
+<p>This tutorial explains how your <strong>subscription billing</strong>, <strong>pull-payment</strong>, and <strong>allowance-based debit</strong> Plutus V2 validator works.</p>
+
+<div class="section toc">
+<h2>📚 Table of Contents</h2>
+<ol>
+  <li><a href="#purpose">Purpose of the Contract</a></li>
+  <li><a href="#datum">Datum & Redeemer</a></li>
+  <li><a href="#helpers">Helper Functions</a></li>
+  <li><a href="#core">Core Validator Logic</a></li>
+  <li><a href="#allowance">Allowance Logic & Reset Windows</a></li>
+  <li><a href="#sigs">Signature Requirements</a></li>
+  <li><a href="#offchain">Off-chain Workflow</a></li>
+  <li><a href="#tests">Testing Cases</a></li>
+  <li><a href="#glossary">Glossary</a></li>
+</ol>
+</div>
+
+<a id="purpose"></a>
+<div class="section">
+<h2>1. 🎯 Purpose of the Contract</h2>
+<p>This smart contract implements a <strong>subscription billing system</strong> that allows:</p>
+<ul>
+  <li>✔️ Merchant pull-payments</li>
+  <li>✔️ Subscriber-set spending limits</li>
+  <li>✔️ Automated time-based resets</li>
+  <li>✔️ Cancel, TopUp, and Update actions</li>
+</ul>
+<p>Use cases include SaaS, streaming, recurring payments, and decentralized debit orders.</p>
+</div>
+
+<a id="datum"></a>
+<div class="section">
+<h2>2. 📄 Datum & Redeemer</h2>
+
+<h3>📌 SubDatum</h3>
+<table>
+<tr><th>Field</th><th>Description</th></tr>
+<tr><td>sdSubscriber</td><td>Owner of the funds</td></tr>
+<tr><td>sdMerchant</td><td>Entity allowed to charge</td></tr>
+<tr><td>sdPeriod</td><td>Billing period length</td></tr>
+<tr><td>sdLimit</td><td>Max spend per period</td></tr>
+<tr><td>sdSpentInPeriod</td><td>Current spend</td></tr>
+<tr><td>sdResetAt</td><td>Reset timestamp</td></tr>
+</table>
+
+<h3>🔄 SubAction</h3>
+<ul>
+  <li><strong>Charge amount</strong></li>
+  <li><strong>Cancel</strong></li>
+  <li><strong>TopUp amount</strong></li>
+  <li><strong>Update newLimit newPeriod newResetAt</strong></li>
+</ul>
+</div>
+
+<a id="helpers"></a>
+<div class="section">
+<h2>3. 🛠️ Helper Functions</h2>
+<h3>valuePaidTo</h3>
+<p>Calculates how much ADA a given PKH receives.</p>
+
+<h3>nowInRange</h3>
+<p>Checks whether the transaction valid range includes a timestamp.</p>
+
+<h3>remainingAllowance</h3>
+<p>Applies reset logic and returns remaining allowance.</p>
+</div>
+
+<a id="core"></a>
+<div class="section">
+<h2>4. 🧠 Core Validator Logic</h2>
+
+<h3>🟦 A) Charge amt</h3>
+<ul>
+<li>Amount must be > 0</li>
+<li>Merchant signature required</li>
+<li>Amount ≤ remaining allowance</li>
+<li>Merchant must actually receive the ADA</li>
+</ul>
+
+<h3>🟥 B) Cancel</h3>
+<p>Only the subscriber may cancel.</p>
+
+<h3>🟧 C) TopUp</h3>
+<p>Subscriber adds more ADA to contract output.</p>
+
+<h3>🟨 D) Update</h3>
+<p>Subscriber updates subscription parameters.</p>
+</div>
+
+<a id="allowance"></a>
+<div class="section">
+<h2>5. ⏱️ Allowance Logic & Reset Windows</h2>
+<p>If <code>txInfoValidRange</code> includes <code>resetAt</code>, the allowance resets inside the same transaction.</p>
+</div>
+
+<a id="sigs"></a>
+<div class="section">
+<h2>6. 🔐 Signature Requirements</h2>
+<table>
+<tr><th>Action</th><th>Required Signature</th></tr>
+<tr><td>Charge</td><td>Merchant</td></tr>
+<tr><td>Cancel</td><td>Subscriber</td></tr>
+<tr><td>TopUp</td><td>Subscriber</td></tr>
+<tr><td>Update</td><td>Subscriber</td></tr>
+</table>
+</div>
+
+<a id="offchain"></a>
+<div class="section">
+<h2>7. 🏗️ Off-chain Workflow</h2>
+<ol>
+  <li>Subscriber creates subscription UTxO</li>
+  <li>Merchant charges when needed</li>
+  <li>Subscriber may cancel, top up, or update</li>
+</ol>
+</div>
+
+<a id="tests"></a>
+<div class="section">
+<h2>8. 🧪 Testing Cases</h2>
+<ul>
+<li>Charge: wrong sig → fail</li>
+<li>Charge: exceed limit → fail</li>
+<li>Cancel: must be subscriber</li>
+<li>TopUp: off-chain must ensure value added</li>
+<li>Update: non-negative fields</li>
+</ul>
+</div>
+
+<a id="glossary"></a>
+<div class="section">
+<h2>9. 📘 Glossary</h2>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Pull Payment</td><td>Merchant-initiated charge</td></tr>
+<tr><td>Allowance</td><td>Max spend per period</td></tr>
+<tr><td>ResetAt</td><td>Time when limit resets</td></tr>
+<tr><td>TopUp</td><td>Add funds</td></tr>
+<tr><td>TxValidRange</td><td>Transaction time window</td></tr>
+</table>
+</div>
+
+</body>
+</html>
